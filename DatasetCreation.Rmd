@@ -1,0 +1,173 @@
+---
+title: "Dataset creation"
+author: "Matilde Correia"
+date: "2024-03-21"
+output: html_document
+
+---
+
+In this RMD we are creating the week_kuds dataset which includes KUD95 and KUD50 of each individual per week and also all independent variables that will be tested in the models, i.e., biological traits and experimental design parameters. Other metrics like Residency Index (RI) and Rate of Movement (ROM_mh) are also included.
+
+```{r}
+#Import data
+week_kuds <- read.csv("KUDs by individual-week.csv", header=T, sep=";")
+
+#Exclude species not of interest
+week_kuds <- week_kuds[week_kuds$File != "Myliobatis_aquila", ]
+week_kuds <- week_kuds[week_kuds$File != "Palinurus_elephas", ]
+week_kuds <- week_kuds[week_kuds$File != "Raja_asterias", ]
+week_kuds <- week_kuds[week_kuds$File != "Raja_brachyura", ]
+week_kuds <- week_kuds[week_kuds$File != "Raja_undulata", ]
+week_kuds <- week_kuds[week_kuds$File != "Torpedo_marmorata", ]
+week_kuds <- week_kuds[week_kuds$File != "Torpedo_torpedo", ]
+
+#Exclude individuals with NA
+week_kuds <- na.omit(week_kuds)
+
+
+#Insert new variables
+
+##Specie
+df0 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Species = c("Dvol", "Dden", "Dden", "Dlab", "Dlab", "Dcer", "Dsar", "Dsar", "Dsar", "Dsar", "Dsar", "Dsar", "Dvul", "Dvul", "Emar", "Emar", "Emar", "Emar", "Gmor", "Gmor", "Gmor", "Lber", "Lami", "Lmor", "Pery", "Ppag", "Ppag", "Psal", "Pden", "Sumb", "Sumb", "Spor", "Scro", "Scro", "Sdum", "Sriv", "Satr", "Scab", "Sscr", "Ssen", "Scre", "Saur", "Saur", "Svir", "Svir", "Scan", "Ucir", "Xnov"))
+
+week_kuds$Species <- df0$Species[match(week_kuds$File, df0$file)]
+
+##Demersal/Pelagic
+df1 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Habitat = c("benthopelagic", "benthopelagic", "benthopelagic", "benthopelagic", "benthopelagic", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "benthopelagic", "benthopelagic", "benthopelagic", "demersal", "pelagic-neritic", "demersal", "benthopelagic", "benthopelagic", "benthopelagic", "pelagic-neritic", "benthopelagic", "benthopelagic", "benthopelagic", "demersal", "demersal", "demersal", "pelagic-neritic", "pelagic-neritic", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "demersal", "pelagic-neritic", "pelagic-neritic", "benthopelagic", "demersal", "demersal"))
+
+week_kuds$Habitat <- df1$Habitat[match(week_kuds$File, df1$file)]
+
+##Anadromo/Catadromo
+df2 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Migration = c("non-migratory", "non-migratory", "non-migratory", "oceanodromous", "oceanodromous", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "oceanodromous", "oceanodromous", "oceanodromous", "non-migratory", "oceanodromous", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "oceanodromous", "oceanodromous", "oceanodromous", "oceanodromous", "non-migratory", "non-migratory", "non-migratory", "oceanodromous", "oceanodromous", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "non-migratory", "oceanodromous", "oceanodromous", "non-migratory", "non-migratory", "non-migratory"))
+
+week_kuds$Migration <- df2$Migration[match(week_kuds$File, df2$file)]
+
+##Commercial Importance
+df3 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  ComImport = c("minor", "high", "high", "high", "high", "medium", "high", "high", "high", "high", "high", "high", "medium", "medium", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "minor", "medium", "high", "high", "high", "medium", "medium", "medium", "minor", "medium", "medium", "medium", "medium", "medium", "minor", "minor", "high", "high", "high", "high", "medium", "medium", "medium", "minor", "minor"))
+
+week_kuds$ComImport <- df3$ComImport[match(week_kuds$File, df3$file)]
+
+##Longevity
+df4 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Longevity = c("20", "28", "28", "30", "30", "18.6", "10", "10", "10", "10", "10", "10", "12", "12", "60", "60", "60", "60", "25", "25", "25", "29", "16.2", "12", "15", "18", "18", "9", "49", "21", "21", "18", "25", "25", "15", "13.5", "16", "8", "16", "26.4", "8", "11", "11", "14", "14", "22.7", "26.5", "8"))
+
+week_kuds$Longevity <- df4$Longevity[match(week_kuds$File, df4$file)]
+week_kuds$Longevity <- as.numeric(week_kuds$Longevity)
+
+##Vulnerability
+df5 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Vulnerability = c("36.5", "66.3", "66.3", "69.1", "69.1", "54.6", "63.4", "63.4", "63.4", "63.4", "63.4", "63.4", "47.8", "47.8", "71.5", "71.5", "71.5", "71.5", "65.4", "65.4", "65.4", "66.6", "90", "40.4", "39.8", "66.4", "66.4", "57.6", "74.3", "63.6", "63.6", "50.5", "67.5", "67.5", "54", "75.8", "60.7", "36", "38.1", "49.2", "35.9", "40.2", "40.2", "68.9", "68.9", "37.2", "40.4", "36.3"))
+
+week_kuds$Vulnerability <- df5$Vulnerability[match(week_kuds$File, df5$file)]
+week_kuds$Vulnerability <- as.numeric(week_kuds$Vulnerability)
+
+##Trophic Level
+df6 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  Troph = c("3.65", "4.53", "4.53", "3.47", "3.47", "2.99", "3.38", "3.38", "3.38", "3.38", "3.38", "3.38", "3.52", "3.52", "4.1", "4.1", "4.1", "4.1", "4.09", "4.09", "4.09", "3.97", "4.5", "3.42", "3.48", "3.86", "3.86", "4.53", "3.92", "3.75", "3.75", "3.92", "4.25", "4.25", "4.66", "4.45", "4.27", "3.35", "3.82", "3.25", "2.86", "3.7", "3.7", "4.31", "4.31", "3.34", "3.41", "3.51"))
+
+week_kuds$Troph <- df6$Troph[match(week_kuds$File, df6$file)]
+week_kuds$Troph <- as.numeric(week_kuds$Troph)
+
+##Maximum Length
+df7 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  MaxLength = c("61", "100", "100", "103", "103", "55", "45", "45", "45", "45", "45", "45", "45", "45", "150", "150", "150", "150", "200", "200", "200", "65.9", "200", "55", "73.2", "91", "91", "130", "122", "70", "70", "40.5", "50", "50", "190", "177.6", "43.2", "48.8", "43.9", "73.2", "50", "70", "70", "142.1", "142.1", "73.2", "73", "38"))
+
+week_kuds$MaxLength <- df7$MaxLength[match(week_kuds$File, df7$file)]
+week_kuds$MaxLength <- as.numeric(week_kuds$MaxLength)
+
+##Maximum Body Mass
+df8 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  MaxBodyMass = c("1800", "14300", "14300", "12000", "12000", "2700", "1900", "1900", "1900", "1900", "1900", "1900", "1300", "1300", "60000", "60000", "60000", "60000", "96000", "96000", "96000", "4400", "50000", "2200", "3200", "7700", "7700", "14400", "18100", "4000", "4000", "870", "3000", "3000", "86000", "59900", "900", "1000", "600", "3000", "2200", "17200", "17200", "8200", "8200", "1200", "11100", "585"))
+
+week_kuds$MaxBodyMass <- df8$MaxBodyMass[match(week_kuds$File, df8$file)]
+week_kuds$MaxBodyMass <- as.numeric(week_kuds$MaxBodyMass)
+
+##a
+df9 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  a = c("0.0153", "0.0134", "0.009", "0.0123", "0.015", "0.007", "0.0101", "0.0101", "0.0101", "0.0101", "0.0101", "0.017", "0.016", "0.016", "0.0091", "0.0091", "0.01047", "0.0091", "0.00743", "0.00743", "0.00743", "0.0119", "0.024675", "0.024", "0.016", "0.01802", "0.02", "0.0076", "0.01933", "0.0136", "0.018", "0.01318", "0.0131", "0.02600", "0.02325", "0.0359", "0.0076", "0.0092", "0.0137", "0.00672", "0.0148", "0.0109", "0.021", "0.00391", "0.0047", "0.01", "0.0117", "0.0955"))
+
+week_kuds$a <- df9$a[match(week_kuds$File, df9$file)]
+week_kuds$a <- as.numeric(week_kuds$a)
+
+##b
+df10 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  b = c("2.863", "3.172", "3.12", "2.955", "2.88", "3.28", "3.168", "3.168", "3.168", "3.168", "3.168", "3", "3.01", "3.01", "3.1149", "3.1149", "3.06", "3.1149", "3.06", "3.06", "3.06", "3.115", "2.834", "2.81", "2.94", "2.977", "2.95", "3.055", "2.8549", "3.1938", "2.91", "3.03", "3.02", "2.89", "2.8535", "2.801", "3.175", "3.066", "2.971", "3.104", "2.9755", "3.091", "2.87", "3", "2.913", "3.2", "3.02", "3"))
+
+week_kuds$b <- df10$b[match(week_kuds$File, df10$file)]
+week_kuds$b <- as.numeric(week_kuds$b)
+
+df11 <- data.frame(file = c("Dactylopterus_volitans", "Dentex_dentex1", "Dentex_dentex2", "Dicentrarchus_labrax1", "Dicentrarchus_labrax2", "Diplodus_cervinus", "Diplodus_sargus1", "Diplodus_sargus2", "Diplodus_sargus3", "Diplodus_sargus4", "Diplodus_sargus5", "Diplodus_sargus6", "Diplodus_vulgaris1", "Diplodus_vulgaris2", "Epinephelus_marginatus1", "Epinephelus_marginatus2", "Epinephelus_marginatus3", "Epinephelus_marginatus4", "Gadus_morhua1", "Gadus_morhua2", "Gadus_morhua3", "Labrus_bergylta", "Lichia_amia", "Lithognathus_mormyrus", "Pagellus_erythrinus", "Pagrus_pagrus1", "Pagrus_pagrus2", "Pomatomus_saltatrix", "Pseudocaranx_dentex", "Sciaena_umbra1", "Sciaena_umbra2", "Scorpaena_porcus", "Scorpaena_scrofa1", "Scorpaena_scrofa2", "Seriola_dumerili", "Seriola_rivoliana", "Serranus_atricauda", "Serranus_cabrilla", "Serranus_scriba", "Solea_senegalensis", "Sparisoma_cretense", "Sparus_aurata1", "Sparus_aurata2", "Sphyraena_viridensis1", "Sphyraena_viridensis2", "Spondyliosoma_cantharus", "Umbrina_cirrosa", "Xyrichtys_novacula"),
+                  SpawnSeason = c("SA", "SS", "SS", "W", "W", "W", "SS", "SS", "SS", "SS", "SS", "SS", "W", "W", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SA", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SS", "SA", "SA", "SS", "SS", "SS", "SS", "SS"))
+
+week_kuds$SpawnSeason <- df11$SpawnSeason[match(week_kuds$File, df11$file)]
+
+##BodyMass
+week_kuds$BodyMass <- week_kuds$a * (week_kuds$Length_cm^week_kuds$b)
+
+##Maximum Body Mass - estimate from MaxLength and parameters (we chose to use the maximum weights found in FishBase and in literature, instead of estimating them using the formula and the maximum lengths)
+#week_kuds$MaxBodyMass <- week_kuds$a * (week_kuds$MaxLength^week_kuds$b)
+
+##Length Scaled (length of the individual divided by maximum length of the species)
+week_kuds$LengthStd <- week_kuds$Length_cm/week_kuds$MaxLength
+
+##Body Mass Scaled (body mass of the individual divided by maximum body mass of the species)
+week_kuds$BodyMassStd <- week_kuds$BodyMass/week_kuds$MaxBodyMass
+
+#Import Arrays dataset
+arrays <- read.csv("Arrays.csv", sep=";")
+##Receiver Density
+week_kuds$ReceiverDensity <- arrays$ReceiverDensity[match(week_kuds$File, arrays$File)]
+##Monitored Area
+week_kuds$MonitArea_km2 <- arrays$MonitoredArea_km2[match(week_kuds$File, arrays$File)]
+##MCP
+week_kuds$MCP_km2 <- arrays$MCP_km2[match(week_kuds$File, arrays$File)]
+##NReceivers
+week_kuds$NReceivers <- arrays$NReceivers[match(week_kuds$File, arrays$File)]
+##MaxDistReceiver
+week_kuds$MaxDistReceivers <- arrays$SpatialScale_km[match(week_kuds$File, arrays$File)]
+
+
+#Import ROM and RI dataset
+metrics <- read.csv("Metrics_by_individual.csv", sep=";")
+
+week_kuds$Tp <- metrics$Tp[match(week_kuds$Transmitter, metrics$Transmitter)]
+# Remove lines where Tp equal to 1
+week_kuds <- week_kuds[week_kuds$Tp != 1, ]
+
+week_kuds$RI <- metrics$IR[match(week_kuds$Transmitter, metrics$Transmitter)]
+
+week_kuds$ROM_mh <- metrics$ROM_mh[match(week_kuds$Transmitter, metrics$Transmitter)]
+
+#Set the columns order
+week_kuds <- week_kuds[, c("File", "Species", "Transmitter", "KUD50", "KUD95", "Week", "Habitat", "Migration", "ComImport", "Length_cm", "LengthStd", "BodyMass", "BodyMassStd", "Longevity", "Vulnerability", "Troph", "ReceiverDensity", "MonitArea_km2", "MCP_km2", "NReceivers", "MaxDistReceivers", "MaxLength", "MaxBodyMass", "a", "b", "SpawnSeason", "Tp", "RI", "ROM_mh")]
+
+```
+
+
+```{r}
+#Função para remover as espécies com menos de 5 indivíduos
+#cleanData <- function(data) {
+  # Calcular o número de transmissores exclusivos em cada arquivo
+#  unique_counts <- tapply(week_kuds$Transmitter, week_kuds$File, function(x) length(unique(x)))
+  
+  # Encontrar os arquivos em que o número de transmissores exclusivos é menor que 5
+#  files_to_remove <- names(unique_counts[unique_counts < 5])
+  
+  # Remover as linhas correspondentes aos arquivos identificados
+#  data <- data[!(data$File %in% files_to_remove), ]
+  
+#  return(data)
+#}
+
+# Utilizar a função para limpar os dados
+#week_kuds <- cleanData(week_kuds)
+```
+
+```{r}
+#write.csv2(week_kuds, file = "~/Documents/Tese/week_kuds2.2.csv", row.names = FALSE)
+```
+

@@ -1,0 +1,1300 @@
+---
+title: "StatisticalAnalysis"
+author: "Matilde Correia"
+date: "2024-05-07"
+output: html_document
+---
+
+```{r}
+#Required packages
+if(!require(readxl)){install.packages("readxl"); library(readxl)}
+if(!require(correlation)){install.packages("correlation"); library(correlation)}
+if(!require(corrplot)){install.packages("corrplot"); library(corrplot)}
+if(!require(car)){install.packages("car"); library(car)}
+if(!require(mgcv)){install.packages("mgcv"); library(mgcv)}
+if(!require(rpart)){install.packages("rpart"); library(rpart)}
+if(!require(ggplot2)){install.packages("ggplot2"); library(ggplot2)}
+if(!require(gridExtra)){install.packages("gridExtra"); library(gridExtra)}
+if(!require(lme4)){install.packages("lme4"); library(lme4)}
+if(!require(Matrix)){install.packages("Matrix"); library(Matrix)}
+if(!require(lmtest)){install.packages("lmtest"); library(lmtest)}
+if(!require(gamm4)){install.packages("gamm4"); library(gamm4)}
+if(!require(sjPlot)){install.packages("sjPlot"); library(sjPlot)}
+if(!require(sjmisc)){install.packages("sjmisc"); library(sjmisc)}
+if(!require(sjlabelled)){install.packages("sjlabelled"); library(sjlabelled)}
+if(!require(performance)){install.packages("performance"); library(performance)}
+if(!require(flexmix)){install.packages("flexmix"); library(flexmix)}
+if(!require(glmmTMB)){install.packages("glmmTMB"); library(glmmTMB)}
+if(!require(DHARMa)){install.packages("DHARMa"); library(DHARMa)}
+```
+
+### Import Dataset
+
+```{r}
+#Import data
+week_kuds <- read.csv("week_kuds2.2.csv", sep=";") #has the wrong week values
+week_kuds3 <- read.csv("week_kuds1 - usar.csv", sep=";") #has the right week values
+week_kuds$Week <- week_kuds3$Week #substitute the wrong for the right week in the dataset
+#create week variable without the year
+names(week_kuds)[names(week_kuds) == "Week"] <- "WeekYear"
+week_kuds$Week <- substr(week_kuds$WeekYear, 1, 2)
+#create year variable without the week
+week_kuds$Year <- substr(week_kuds$WeekYear, 4, 7)
+
+week_kuds$File <- as.factor(week_kuds$File)
+week_kuds$Species <- as.factor(week_kuds$Species)
+week_kuds$Transmitter <- as.factor(week_kuds$Transmitter)
+week_kuds$KUD50 <- as.numeric(week_kuds$KUD50)
+week_kuds$KUD95 <- as.numeric(week_kuds$KUD95)
+week_kuds$Habitat <- as.factor(week_kuds$Habitat)
+week_kuds$Migration <- as.factor(week_kuds$Migration)
+week_kuds$ComImport <- as.factor(week_kuds$ComImport)
+week_kuds$Length_cm <- as.numeric(week_kuds$Length_cm)
+week_kuds$LengthStd <- as.numeric(week_kuds$LengthStd)
+week_kuds$BodyMass <- as.numeric(week_kuds$BodyMass)
+week_kuds$BodyMassStd <- as.numeric(week_kuds$BodyMassStd)
+week_kuds$Longevity <- as.numeric(week_kuds$Longevity)
+week_kuds$Vulnerability <- as.numeric(week_kuds$Vulnerability)
+week_kuds$Troph <- as.numeric(week_kuds$Troph)
+week_kuds$ReceiverDensity <- as.numeric(week_kuds$ReceiverDensity)
+week_kuds$MonitArea_km2 <- as.numeric(week_kuds$MonitArea_km2)
+week_kuds$MCP_km2 <- as.numeric(week_kuds$MCP_km2)
+week_kuds$NReceivers <- as.numeric(week_kuds$NReceivers)
+week_kuds$MaxDistReceivers <- as.numeric(week_kuds$MaxDistReceivers)
+week_kuds$MaxLength <- as.numeric(week_kuds$MaxLength)
+week_kuds$MaxBodyMass <- as.numeric(week_kuds$MaxBodyMass)
+week_kuds$a <- as.numeric(week_kuds$a)
+week_kuds$b <- as.numeric(week_kuds$b)
+week_kuds$Week <- as.factor(week_kuds$Week)
+week_kuds$Year <- as.factor(week_kuds$Year)
+week_kuds$Spawn <- as.factor(week_kuds$Spawn)
+```
+
+```{r}
+summary(week_kuds)
+```
+
+```{r}
+#Number of individuals by species
+num_transmissores <- aggregate(Transmitter ~ Species, data = week_kuds, FUN = function(x) length(unique(x)))
+
+barplot(num_transmissores$Transmitter, 
+        names.arg = num_transmissores$Species, 
+        xlab = "Species", 
+        ylab = "Number of Individuals",
+        col = "deepskyblue", 
+        border = "black",
+        ylim= c(0,180),
+        yaxp = c(0, 180, 3),
+        cex.names = 0.8,
+        las = 2)
+text(x = barplot(num_transmissores$Transmitter, plot = FALSE), 
+     y = num_transmissores$Transmitter, 
+     label = num_transmissores$Transmitter, 
+     pos = 3, 
+     cex = 0.7)
+
+#Number of observations by species
+contagem_observacoes <- table( week_kuds$File, week_kuds$Species)
+
+barplot(contagem_observacoes, 
+        xlab = "Species", 
+        ylab = "Number of Observations", 
+        col= c("deepskyblue"),
+        border = "black",
+        ylim = c(0, 4000),
+        yaxp = c(0, 4000, 8),
+        cex.names = 0.8,
+        las = 2)
+```
+
+```{r}
+ggplot(week_kuds, aes(LengthStd, KUD95, color=File)) +
+         geom_point() +
+  labs(title = "KUD95 ~ Length por File")
+
+ggplot(week_kuds, aes(BodyMassStd, KUD95, color=File)) +
+         geom_point() +
+  labs(title = "KUD95 ~ BodyMass por File")
+
+ggplot(week_kuds, aes(Vulnerability, KUD95, color=File)) +
+         geom_point() +
+  labs(title = "KUD95 ~ Vulnerability por File")
+
+ggplot(week_kuds, aes(Longevity, KUD95, color=File)) +
+         geom_point() +
+  labs(title = "KUD95 ~ Longevity por File")
+
+ggplot(week_kuds, aes(Troph, KUD95, color=File)) +
+         geom_point() +
+  labs(title = "KUD95 ~ Troph por File")
+
+
+
+ggplot(week_kuds, aes(LengthStd, KUD95)) +
+         geom_point() +
+         facet_wrap(~File, ncol=7) +
+  labs(title = "KUD95 ~ Length por File")
+```
+
+### Linear Model Assumptions 
+
+## Normality Assumption
+
+# KUD95
+```{r}
+summary(week_kuds$KUD95)
+
+hist(week_kuds$KUD95, col= "deepskyblue", main = "KUD95 Frequency", xlab="KUD95", breaks = 30)
+qqnorm(week_kuds$KUD95)
+qqline(week_kuds$KUD95, col = 2)
+
+boxplot(week_kuds$KUD95, col="deepskyblue", ylab = "KUD95", main = "Boxplot of KUD95")
+```
+
+# KUD50
+```{r}
+summary(week_kuds$KUD50)
+
+hist(week_kuds$KUD50, col= "green2", main = "KUD50 Frequency", xlab="KUD50", breaks = 30)
+qqnorm(week_kuds$KUD50)
+qqline(week_kuds$KUD50, col = 2)
+
+boxplot(week_kuds$KUD50, col= "green2", ylab = "KUD50", main = "Boxplot of KUD50")
+```
+
+First of all, we saw the summary of KUD95 and KUD50, to have a better perception of the dimension of these variables. After, we investigated if this variables were Normal distributed. For that we used two methods: Histogram and Q-Q plot. If a variable is Normal distributed, it is expected to see the shape of a bell in the histogram, symmetrical around an average. In addition, in the Q-Q plot, it's expected to see the points distributed along the reference line, without major deviations. With this said, we could see that the histograms don't have the shape of a bell, instead they only have one side of the bell, so the points are not distributed symmetrically around an average, and the points from the Q-Q plot are very distant from the reference line. This indicate that our response variables are not Normal distributed. We also made a boxplot and as it's possible to identify a bunch of outliers, it is further proof that the response variable doesn't follow a Normal distribuition, otherwise the points would be more contained inside the box. The Normality assumption is not met for both response variables.
+The data violates the Normality Assumption.
+
+
+## Outliers Analysis
+
+```{r}
+#First removal
+boxplot.stats(week_kuds$KUD95) #superior limit where outliers start is 1.827
+rem_out1_kud95 <- subset(week_kuds, KUD95 < 1.827)
+summary(rem_out1_kud95)
+boxplot(rem_out1_kud95$KUD95, col = "deepskyblue", ylab="KUD95", main="Boxplot of KUD95 after the first outliers removal")
+
+boxplot.stats(week_kuds$KUD50) #superior limit where outliers start is 0.351
+rem_out1_kud50 <- subset(week_kuds, KUD50 < 0.351)
+boxplot(rem_out1_kud50$KUD50, col = "green2", ylab="KUD50", main="Boxplot of KUD50 after the first outliers removal")
+
+#Second removal
+boxplot.stats(rem_out1_kud95$KUD95) #superior limit where outliers start is 1.494
+rem_out2_kud95 <- subset(week_kuds, KUD95 < 1.494)
+boxplot(rem_out2_kud95$KUD95, col = "deepskyblue", ylab="KUD95", main="Boxplot of KUD95 after the second outliers removal")
+
+boxplot.stats(rem_out1_kud50$KUD50) #superior limit where outliers start is 0.281
+rem_out2_kud50 <- subset(week_kuds, KUD50 < 0.281)
+boxplot(rem_out2_kud50$KUD50, col = "green2", ylab="KUD50", main="Boxplot of KUD50 after the second outliers removal")
+
+#Third removal
+boxplot.stats(rem_out2_kud95$KUD95) #superior limit where outliers start is 1.311
+rem_out3_kud95 <- subset(week_kuds, KUD95 < 1.311)
+boxplot(rem_out3_kud95$KUD95, col = "deepskyblue", ylab="KUD95", main="Boxplot of KUD95 after the third outliers removal")
+
+boxplot.stats(rem_out2_kud50$KUD50) #superior limit where outliers start is 0.233
+rem_out3_kud50 <- subset(week_kuds, KUD50 < 0.233)
+boxplot(rem_out3_kud50$KUD50, col = "green2", ylab="KUD50", main="Boxplot of KUD50 after the third outliers removal")
+```
+
+As the distributions of both KUD95 and KUD50 kept the outliers after consecutive removal, we decided to keep all observations in the dataset. This happened probably because the data has a high variability that is not explained by a normal distribution, so the outliers are not erros but in fact variability that the normal distribution can not explain but that hold relevant biological information that we should not ignore.
+
+
+## Linearity Assumption
+
+# KUD95
+```{r}
+#Correlation between response and numeric explanatory variables
+plot(week_kuds$LengthStd, week_kuds$KUD95, xlab = "Length Std", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Length Std")
+plot(week_kuds$BodyMassStd, week_kuds$KUD95, xlab = "Body Mass Std", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Body Mass Std")
+plot(week_kuds$Longevity, week_kuds$KUD95, xlab = "Longevity", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Longevity")
+plot(week_kuds$Vulnerability, week_kuds$KUD95, xlab = "Vulnerability", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Vulnerability")
+plot(week_kuds$Troph, week_kuds$KUD95, xlab = "Troph", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Troph")
+plot(week_kuds$ReceiverDensity, week_kuds$KUD95, xlab = "Receiver Density", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Receiver Density")
+plot(week_kuds$MonitArea_km2, week_kuds$KUD95, xlab = "MonitArea (km2)", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Monitored Area")
+plot(week_kuds$MCP_km2, week_kuds$KUD95, xlab = "MCP (km2)", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of MCP")
+plot(week_kuds$NReceivers, week_kuds$KUD95, xlab = "N Receivers", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of N Receivers")
+plot(week_kuds$MaxDistReceivers, week_kuds$KUD95, xlab = "Max. Dist. Receivers", ylab="KUD95", col="deepskyblue", main = "KUD95 as a function of Max. Dist. Receivers")
+
+cor(week_kuds$LengthStd, week_kuds$KUD95)
+cor(week_kuds$BodyMassStd, week_kuds$KUD95)
+cor(week_kuds$Longevity, week_kuds$KUD95)
+cor(week_kuds$Vulnerability, week_kuds$KUD95)
+cor(week_kuds$Troph, week_kuds$KUD95)
+cor(week_kuds$ReceiverDensity, week_kuds$KUD95)
+cor(week_kuds$MonitArea_km2, week_kuds$KUD95)
+cor(week_kuds$MCP_km2, week_kuds$KUD95)
+cor(week_kuds$NReceivers, week_kuds$KUD95)
+cor(week_kuds$MaxDistReceivers, week_kuds$KUD95)
+```
+
+# KUD50
+```{r}
+#Correlation between response and numeric explanatory variables
+plot(week_kuds$LengthStd, week_kuds$KUD50, xlab = "Length Std", ylab="KUD50", col="green2", main = "KUD50 as a function of LengthStd")
+plot(week_kuds$BodyMassStd, week_kuds$KUD50, xlab = "Body Mass Std", ylab="KUD50", col="green2", main = "KUD50 as a function of Body Mass Std")
+plot(week_kuds$Longevity, week_kuds$KUD50, xlab = "Longevity", ylab="KUD50", col="green2", main = "KUD50 as a function of Longevity")
+plot(week_kuds$Vulnerability, week_kuds$KUD50, xlab = "Vulnerability", ylab="KUD50", col="green2", main = "KUD50 as a function of Vulnerability")
+plot(week_kuds$Troph, week_kuds$KUD50, xlab = "Troph", ylab="KUD50", col="green2", main = "KUD50 as a function of Troph")
+plot(week_kuds$ReceiverDensity, week_kuds$KUD50, xlab = "Receiver Density", ylab="KUD50", col="green2", main = "KUD50 as a function of Receiver Density")
+plot(week_kuds$MonitArea_km2, week_kuds$KUD50, xlab = "MonitArea (km2)", ylab="KUD50", col="green2", main = "KUD50 as a function of Monitored Area")
+plot(week_kuds$MCP_km2, week_kuds$KUD50, xlab = "MCP (km2)", ylab="KUD50", col="green2", main = "KUD50 as a function of MCP")
+plot(week_kuds$NReceivers, week_kuds$KUD50, xlab = "N Receivers", ylab="KUD50", col="green2", main = "KUD50 as a function of N Receivers")
+plot(week_kuds$MaxDistReceivers, week_kuds$KUD50, xlab = "Max. Dist. Receivers", ylab="KUD50", col="green2", main = "KUD50 as a function of Max. Dist. Receivers")
+
+cor(week_kuds$LengthStd, week_kuds$KUD50)
+cor(week_kuds$BodyMassStd, week_kuds$KUD50)
+cor(week_kuds$Longevity, week_kuds$KUD50)
+cor(week_kuds$Vulnerability, week_kuds$KUD50)
+cor(week_kuds$Troph, week_kuds$KUD50)
+cor(week_kuds$ReceiverDensity, week_kuds$KUD50)
+cor(week_kuds$MonitArea_km2, week_kuds$KUD50)
+cor(week_kuds$MCP_km2, week_kuds$KUD50)
+cor(week_kuds$NReceivers, week_kuds$KUD50)
+cor(week_kuds$MaxDistReceivers, week_kuds$KUD50)
+```
+
+
+```{r}
+cor.data <- data.frame(week_kuds$KUD95, week_kuds$KUD50, week_kuds$LengthStd, week_kuds$BodyMassStd, week_kuds$Longevity, week_kuds$Vulnerability, week_kuds$Troph, week_kuds$ReceiverDensity, week_kuds$MonitArea_km2, week_kuds$MCP_km2, week_kuds$NReceivers, week_kuds$MaxDistReceivers)
+names(cor.data) <- c("KUD95", "KUD50", "LengthStd", "BodyMassStd", "Longevity", "Vulnerability", "Troph", "ReceiverDensity", "MonitArea_km2", "MCP_km2", "NReceivers", "MaxDistReceivers")
+cortable <- cor(cor.data)
+corrplot(cortable, tl.col = "black")
+```
+
+It doesn't seem to exist a linear relationship between the response variables and any of the numeric explanatory variables, since the correlation is approximately 0.
+
+
+To see if makes sense to introduce a certain categorical variable in a linear model, we first need to observe if the different categories of each variable are easily distinguished by their response variable values.
+```{r}
+#Boxplots of categorical explanatory variables KUD95
+
+par(mfrow = c(2, 3))
+boxplot(KUD95 ~ Habitat, data= week_kuds, col="deepskyblue", xlab="Habitat")
+title("Boxplot of KUD95 given Habitat")
+boxplot(KUD95 ~ Migration, data= week_kuds, col="deepskyblue", xlab = "Migration") 
+title("Boxplot of KUD95 given Migration")
+boxplot(KUD95 ~ ComImport, data= week_kuds,col="deepskyblue", xlab = "Commercial Importance") 
+title("Boxplot of KUD95 given Commercial Importance")
+
+leveneTest(KUD95 ~ Habitat, data = week_kuds)
+leveneTest(KUD95 ~ Migration, data = week_kuds)
+leveneTest(KUD95 ~ ComImport, data = week_kuds)
+
+#Boxplots of categorical explanatory variables KUD50
+
+par(mfrow = c(1, 3))
+boxplot(KUD50 ~ Habitat, data= week_kuds, col="green2", xlab="Habitat")
+title("Boxplot of KUD50 given Habitat")
+boxplot(KUD50 ~ Migration, data= week_kuds, col="green2", xlab = "Migration") 
+title("Boxplot of KUD50 given Migration")
+boxplot(KUD50 ~ ComImport, data= week_kuds,col="green2", xlab = "Commercial Importance") 
+title("Boxplot of KUD50 given Commercial Importance")
+
+leveneTest(KUD50 ~ Habitat, data = week_kuds)
+leveneTest(KUD50 ~ Migration, data = week_kuds)
+leveneTest(KUD50 ~ ComImport, data = week_kuds)
+kruskal.test(KUD95 ~ Habitat, data = week_kuds)
+kruskal.test(KUD95 ~ Migration, data = week_kuds)
+kruskal.test(KUD95 ~ ComImport, data = week_kuds)
+```
+
+We made boxplots to observe if the values of each category were different from each other, but the only thing we could see was that there was overlapping in the values of the boxes and a lot of outliers. Also, through the levene test we could observe that the variance between groups in each categorical variable is heterogeneous. 
+
+The data violates the Linearity Assumption.
+
+## Correlation Assumption
+```{r}
+#Biological traits correlation
+cor(week_kuds$LengthStd, week_kuds$BodyMassStd)
+cor(week_kuds$LengthStd, week_kuds$Longevity)
+cor(week_kuds$LengthStd, week_kuds$Vulnerability)
+cor(week_kuds$LengthStd, week_kuds$Troph)
+cor(week_kuds$BodyMassStd, week_kuds$Longevity)
+cor(week_kuds$BodyMassStd, week_kuds$Vulnerability)
+cor(week_kuds$BodyMassStd, week_kuds$Troph)
+cor(week_kuds$Longevity, week_kuds$Vulnerability)
+cor(week_kuds$Longevity, week_kuds$Troph)
+cor(week_kuds$Vulnerability, week_kuds$Troph)
+
+plot(correlation(week_kuds[,c(11, 13, 14, 15, 16)], method = "pearson"), main="Linear correlation between biological traits")
+cor.matrix1 <- data.frame(week_kuds$LengthStd, week_kuds$BodyMassStd, week_kuds$Longevity, week_kuds$Vulnerability, week_kuds$Troph)
+names(cor.matrix1) <- c("LengthStd", "BodyMassStd", "Longevity", "Vulnerability", "Troph")
+cortable1 <- cor(cor.matrix1)
+corrplot(cortable1, tl.col = "black")
+
+#Experimental design parameters correlation
+cor(week_kuds$ReceiverDensity, week_kuds$MonitArea_km2)
+cor(week_kuds$ReceiverDensity, week_kuds$MCP_km2)
+cor(week_kuds$ReceiverDensity, week_kuds$NReceivers)
+cor(week_kuds$ReceiverDensity, week_kuds$MaxDistReceivers)
+cor(week_kuds$MonitArea_km2, week_kuds$MCP_km2)
+cor(week_kuds$MonitArea_km2, week_kuds$NReceivers)
+cor(week_kuds$MonitArea_km2, week_kuds$MaxDistReceivers)
+cor(week_kuds$MCP_km2, week_kuds$NReceivers)
+cor(week_kuds$MCP_km2, week_kuds$MaxDistReceivers)
+cor(week_kuds$NReceivers, week_kuds$MaxDistReceivers)
+
+plot(correlation(week_kuds[,c(17, 18, 19, 20, 21)]), main="Linear correlation between experimental design parameters")
+cor.data2 <- data.frame(week_kuds$ReceiverDensity, week_kuds$MonitArea_km2, week_kuds$MCP_km2, week_kuds$NReceivers, week_kuds$MaxDistReceivers)
+names(cor.data2) <- c("ReceiverDensity", "MonitArea_km2", "MCP_km2", "NReceivers", "MaxDistReceivers")
+cortable2 <- cor(cor.data2)
+corrplot(cortable2, tl.col = "black")
+```
+
+We can observe that the only biological traits with a relative high linear correlation are the length standardised (LenghtStd) with the body mass standardised (BodyMassStd), with 74,7%. For the experimental design parameters, the monitored area has a relative high linear correlation with the number of receivers (NReceivers) and with the maximum distance between receivers (MaxDistReceivers), with 98,4% and 74,4% respectively. In future possible linear model analysis we may choose to include only one of these variables to avoid errors in coefficient estimates.
+
+
+### Data Transformation
+## To the Response Variables
+
+# Log KUD95
+```{r}
+plot(week_kuds$LengthStd, log(week_kuds$KUD95))
+plot(week_kuds$BodyMassStd, log(week_kuds$KUD95))
+plot(week_kuds$Longevity, log(week_kuds$KUD95))
+plot(week_kuds$Vulnerability, log(week_kuds$KUD95))
+plot(week_kuds$Troph, log(week_kuds$KUD95))
+
+cor(week_kuds$LengthStd, log(week_kuds$KUD95))
+cor(week_kuds$BodyMass, log(week_kuds$KUD95))
+cor(week_kuds$Longevity, log(week_kuds$KUD95))
+cor(week_kuds$Vulnerability, log(week_kuds$KUD95))
+cor(week_kuds$Troph, log(week_kuds$KUD95))
+cor(week_kuds$ReceiverDensity, log(week_kuds$KUD95))
+cor(week_kuds$MonitArea_km2, log(week_kuds$KUD95))
+cor(week_kuds$MCP_km2, log(week_kuds$KUD95))
+cor(week_kuds$NReceivers, log(week_kuds$KUD95))
+cor(week_kuds$MaxDistReceivers, log(week_kuds$KUD95))
+
+hist(log(week_kuds$KUD95))
+qqnorm(log(week_kuds$KUD95))
+qqline(log(week_kuds$KUD95), col = 2)
+```
+
+# Log KUD50
+```{r}
+plot(week_kuds$LengthStd, log(week_kuds$KUD50))
+plot(week_kuds$BodyMassStd, log(week_kuds$KUD50))
+plot(week_kuds$Longevity, log(week_kuds$KUD50))
+plot(week_kuds$Vulnerability, log(week_kuds$KUD50))
+plot(week_kuds$Troph, log(week_kuds$KUD50))
+
+cor(week_kuds$LengthStd, log(week_kuds$KUD50))
+cor(week_kuds$BodyMass, log(week_kuds$KUD50))
+cor(week_kuds$Longevity, log(week_kuds$KUD50))
+cor(week_kuds$Vulnerability, log(week_kuds$KUD50))
+cor(week_kuds$Troph, log(week_kuds$KUD50))
+cor(week_kuds$ReceiverDensity, log(week_kuds$KUD50))
+cor(week_kuds$MonitArea_km2, log(week_kuds$KUD50))
+cor(week_kuds$MCP_km2, log(week_kuds$KUD50))
+cor(week_kuds$NReceivers, log(week_kuds$KUD50))
+cor(week_kuds$MaxDistReceivers, log(week_kuds$KUD50))
+
+hist(log(week_kuds$KUD50))
+qqnorm(log(week_kuds$KUD50))
+qqline(log(week_kuds$KUD50), col = 2)
+```
+
+The log transformation doesn't resolve the problem of the Linearity Assumption.
+
+# x^2 KUD95
+```{r}
+plot(week_kuds$LengthStd, (week_kuds$KUD95)^2)
+plot(week_kuds$BodyMassStd, (week_kuds$KUD95)^2)
+plot(week_kuds$Longevity, (week_kuds$KUD95)^2)
+plot(week_kuds$Vulnerability, (week_kuds$KUD95)^2)
+plot(week_kuds$Troph, (week_kuds$KUD95)^2)
+
+cor(week_kuds$LengthStd, (week_kuds$KUD95)^2)
+cor(week_kuds$BodyMassStd, (week_kuds$KUD95)^2)
+cor(week_kuds$Longevity, (week_kuds$KUD95)^2)
+cor(week_kuds$Vulnerability, (week_kuds$KUD95)^2)
+cor(week_kuds$Troph, (week_kuds$KUD95)^2)
+cor(week_kuds$ReceiverDensity, (week_kuds$KUD95)^2)
+cor(week_kuds$MonitArea_km2, (week_kuds$KUD95)^2)
+cor(week_kuds$MCP_km2, (week_kuds$KUD95)^2)
+cor(week_kuds$NReceivers, (week_kuds$KUD95)^2)
+cor(week_kuds$MaxDistReceivers, (week_kuds$KUD95)^2)
+
+hist((week_kuds$KUD95)^2)
+qqnorm((week_kuds$KUD95)^2)
+qqline((week_kuds$KUD95)^2, col = 2)
+```
+
+# x^2 KUD50
+```{r}
+plot(week_kuds$LengthStd, (week_kuds$KUD50)^2)
+plot(week_kuds$BodyMassStd, (week_kuds$KUD50)^2)
+plot(week_kuds$Longevity, (week_kuds$KUD50)^2)
+plot(week_kuds$Vulnerability, (week_kuds$KUD50)^2)
+plot(week_kuds$Troph, (week_kuds$KUD50)^2)
+
+cor(week_kuds$LengthStd, (week_kuds$KUD50)^2)
+cor(week_kuds$BodyMassStd, (week_kuds$KUD50)^2)
+cor(week_kuds$Longevity, (week_kuds$KUD50)^2)
+cor(week_kuds$Vulnerability, (week_kuds$KUD50)^2)
+cor(week_kuds$Troph, (week_kuds$KUD50)^2)
+cor(week_kuds$ReceiverDensity, (week_kuds$KUD50)^2)
+cor(week_kuds$MonitArea_km2, (week_kuds$KUD50)^2)
+cor(week_kuds$MCP_km2, (week_kuds$KUD50)^2)
+cor(week_kuds$NReceivers, (week_kuds$KUD50)^2)
+cor(week_kuds$MaxDistReceivers, (week_kuds$KUD50)^2)
+
+hist((week_kuds$KUD50)^2)
+qqnorm((week_kuds$KUD50)^2)
+qqline((week_kuds$KUD50)^2, col = 2)
+```
+
+The sqaured transformation doesn't resolve the problem of the Linearity Assumption.
+
+# Squared root KUD95
+```{r}
+plot(week_kuds$LengthStd, sqrt(week_kuds$KUD95))
+plot(week_kuds$BodyMassStd, sqrt(week_kuds$KUD95))
+plot(week_kuds$Longevity, sqrt(week_kuds$KUD95))
+plot(week_kuds$Vulnerability, sqrt(week_kuds$KUD95))
+plot(week_kuds$Troph, sqrt(week_kuds$KUD95))
+
+cor(week_kuds$LengthStd, sqrt(week_kuds$KUD95))
+cor(week_kuds$BodyMass, sqrt(week_kuds$KUD95))
+cor(week_kuds$Longevity, sqrt(week_kuds$KUD95))
+cor(week_kuds$Vulnerability, sqrt(week_kuds$KUD95))
+cor(week_kuds$Troph, sqrt(week_kuds$KUD95))
+cor(week_kuds$ReceiverDensity, sqrt(week_kuds$KUD95))
+cor(week_kuds$MonitArea_km2, sqrt(week_kuds$KUD95))
+cor(week_kuds$MCP_km2, sqrt(week_kuds$KUD95))
+cor(week_kuds$NReceivers, sqrt(week_kuds$KUD95))
+cor(week_kuds$MaxDistReceivers, sqrt(week_kuds$KUD95))
+
+hist(sqrt(week_kuds$KUD95))
+qqnorm(sqrt(week_kuds$KUD95))
+qqline(sqrt(week_kuds$KUD95), col = 2)
+```
+
+# Squared root KUD50
+```{r}
+plot(week_kuds$LengthStd, sqrt(week_kuds$KUD50))
+plot(week_kuds$BodyMassStd, sqrt(week_kuds$KUD50))
+plot(week_kuds$Longevity, sqrt(week_kuds$KUD50))
+plot(week_kuds$Vulnerability, sqrt(week_kuds$KUD50))
+plot(week_kuds$Troph, sqrt(week_kuds$KUD50))
+
+cor(week_kuds$LengthStd, sqrt(week_kuds$KUD50))
+cor(week_kuds$BodyMass, sqrt(week_kuds$KUD50))
+cor(week_kuds$Longevity, sqrt(week_kuds$KUD50))
+cor(week_kuds$Vulnerability, sqrt(week_kuds$KUD50))
+cor(week_kuds$Troph, sqrt(week_kuds$KUD50))
+cor(week_kuds$ReceiverDensity, sqrt(week_kuds$KUD50))
+cor(week_kuds$MonitArea_km2, sqrt(week_kuds$KUD50))
+cor(week_kuds$MCP_km2, sqrt(week_kuds$KUD50))
+cor(week_kuds$NReceivers, sqrt(week_kuds$KUD50))
+cor(week_kuds$MaxDistReceivers, sqrt(week_kuds$KUD50))
+
+hist(sqrt(week_kuds$KUD50))
+qqnorm(sqrt(week_kuds$KUD50))
+qqline(sqrt(week_kuds$KUD50), col = 2)
+```
+
+The squared root transformation doesn't resolve the problem of the Linearity Assumption.
+
+# Inverse KUD95
+```{r}
+plot(week_kuds$LengthStd, 1/week_kuds$KUD95)
+plot(week_kuds$BodyMassStd, 1/week_kuds$KUD95)
+plot(week_kuds$Longevity, 1/week_kuds$KUD95)
+plot(week_kuds$Vulnerability, 1/week_kuds$KUD95)
+plot(week_kuds$Troph, 1/week_kuds$KUD95)
+
+cor(week_kuds$LengthStd, 1/week_kuds$KUD95)
+cor(week_kuds$BodyMass, 1/week_kuds$KUD95)
+cor(week_kuds$Longevity, 1/week_kuds$KUD95)
+cor(week_kuds$Vulnerability, 1/week_kuds$KUD95)
+cor(week_kuds$Troph, 1/week_kuds$KUD95)
+cor(week_kuds$ReceiverDensity, 1/(week_kuds$KUD95))
+cor(week_kuds$MonitArea_km2, 1/(week_kuds$KUD95))
+cor(week_kuds$MCP_km2, 1/(week_kuds$KUD95))
+cor(week_kuds$NReceivers, 1/(week_kuds$KUD95))
+cor(week_kuds$MaxDistReceivers, 1/(week_kuds$KUD95))
+
+hist(1/week_kuds$KUD95)
+qqnorm(1/week_kuds$KUD95)
+qqline(1/week_kuds$KUD95, col = 2)
+```
+
+# Inverse KUD50
+```{r}
+plot(week_kuds$LengthStd, 1/week_kuds$KUD50)
+plot(week_kuds$BodyMassStd, 1/week_kuds$KUD50)
+plot(week_kuds$Longevity, 1/week_kuds$KUD50)
+plot(week_kuds$Vulnerability, 1/week_kuds$KUD50)
+plot(week_kuds$Troph, 1/week_kuds$KUD50)
+
+cor(week_kuds$LengthStd, 1/week_kuds$KUD50)
+cor(week_kuds$BodyMass, 1/week_kuds$KUD50)
+cor(week_kuds$Longevity, 1/week_kuds$KUD50)
+cor(week_kuds$Vulnerability, 1/week_kuds$KUD50)
+cor(week_kuds$Troph, 1/week_kuds$KUD50)
+cor(week_kuds$ReceiverDensity, 1/(week_kuds$KUD50))
+cor(week_kuds$MonitArea_km2, 1/(week_kuds$KUD50))
+cor(week_kuds$MCP_km2, 1/(week_kuds$KUD50))
+cor(week_kuds$NReceivers, 1/(week_kuds$KUD50))
+cor(week_kuds$MaxDistReceivers, 1/(week_kuds$KUD50))
+
+hist(1/week_kuds$KUD50)
+qqnorm(1/week_kuds$KUD50)
+qqline(1/week_kuds$KUD50, col = 2)
+```
+
+The inverse transformation doesn't resolve the problem of the Linearity Assumption.
+
+Transformations to the response variables were made to try to meet the assumption of linearity and normality. However, we hadn't any positive results and the data kept violating the assumptions.
+
+
+## To the Explanatory Variables
+
+#KUD95
+```{r}
+cor(log(week_kuds$KUD95), log(week_kuds$LengthStd))
+cor(log(week_kuds$KUD95), log(week_kuds$BodyMassStd))
+cor(log(week_kuds$KUD95),log(week_kuds$Longevity))
+cor(log(week_kuds$KUD95),log(week_kuds$Vulnerability))
+cor(log(week_kuds$KUD95),log(week_kuds$Troph))
+cor(log(week_kuds$ReceiverDensity), week_kuds$KUD95)
+cor(log(week_kuds$MonitArea_km2), week_kuds$KUD95)
+cor(log(week_kuds$MCP_km2), week_kuds$KUD95)
+cor(log(week_kuds$NReceivers), week_kuds$KUD95)
+cor(log(week_kuds$MaxDistReceivers), week_kuds$KUD95)
+
+cor(week_kuds$KUD50, log(week_kuds$LengthStd))
+cor(week_kuds$KUD50, log(week_kuds$BodyMassStd))
+cor(week_kuds$KUD50,log(week_kuds$Longevity))
+cor(week_kuds$KUD50,log(week_kuds$Vulnerability))
+cor(week_kuds$KUD50,log(week_kuds$Troph))
+cor(log(week_kuds$ReceiverDensity), week_kuds$KUD50)
+cor(log(week_kuds$MonitArea_km2), week_kuds$KUD50)
+cor(log(week_kuds$MCP_km2), week_kuds$KUD50)
+cor(log(week_kuds$NReceivers), week_kuds$KUD50)
+cor(log(week_kuds$MaxDistReceivers), week_kuds$KUD50)
+
+cor(week_kuds$KUD95, week_kuds$LengthStd^2)
+cor(week_kuds$KUD95, week_kuds$BodyMassStd^2)
+cor(week_kuds$KUD95, week_kuds$Longevity^2)
+cor(week_kuds$KUD95, week_kuds$Vulnerability^2)
+cor(week_kuds$KUD95, week_kuds$Troph^2)
+cor(week_kuds$ReceiverDensity^2, week_kuds$KUD95)
+cor(week_kuds$MonitArea_km2^2, week_kuds$KUD95)
+cor(week_kuds$MCP_km2^2, week_kuds$KUD95)
+cor(week_kuds$NReceivers^2, week_kuds$KUD95)
+cor(week_kuds$MaxDistReceivers^2, week_kuds$KUD95)
+
+cor(week_kuds$KUD50, week_kuds$LengthStd^2)
+cor(week_kuds$KUD50, week_kuds$BodyMassStd^2)
+cor(week_kuds$KUD50, week_kuds$Longevity^2)
+cor(week_kuds$KUD50, week_kuds$Vulnerability^2)
+cor(week_kuds$KUD50, week_kuds$Troph^2)
+cor(week_kuds$ReceiverDensity^2, week_kuds$KUD50)
+cor(week_kuds$MonitArea_km2^2, week_kuds$KUD50)
+cor(week_kuds$MCP_km2^2, week_kuds$KUD50)
+cor(week_kuds$NReceivers^2, week_kuds$KUD50)
+cor(week_kuds$MaxDistReceivers^2, week_kuds$KUD50)
+
+cor(week_kuds$KUD95, sqrt(week_kuds$LengthStd))
+cor(week_kuds$KUD95, sqrt(week_kuds$BodyMassStd))
+cor(week_kuds$KUD95, sqrt(week_kuds$Longevity))
+cor(week_kuds$KUD95, sqrt(week_kuds$Vulnerability))
+cor(week_kuds$KUD95, sqrt(week_kuds$Troph))
+cor(sqrt(week_kuds$ReceiverDensity), week_kuds$KUD95)
+cor(sqrt(week_kuds$MonitArea_km2), week_kuds$KUD95)
+cor(sqrt(week_kuds$MCP_km2), week_kuds$KUD95)
+cor(sqrt(week_kuds$NReceivers), week_kuds$KUD95)
+cor(sqrt(week_kuds$MaxDistReceivers), week_kuds$KUD95)
+
+cor(week_kuds$KUD50, sqrt(week_kuds$LengthStd))
+cor(week_kuds$KUD50, sqrt(week_kuds$BodyMassStd))
+cor(week_kuds$KUD50, sqrt(week_kuds$Longevity))
+cor(week_kuds$KUD50, sqrt(week_kuds$Vulnerability))
+cor(week_kuds$KUD50, sqrt(week_kuds$Troph))
+cor(sqrt(week_kuds$ReceiverDensity), week_kuds$KUD50)
+cor(sqrt(week_kuds$MonitArea_km2), week_kuds$KUD50)
+cor(sqrt(week_kuds$MCP_km2), week_kuds$KUD50)
+cor(sqrt(week_kuds$NReceivers), week_kuds$KUD50)
+cor(sqrt(week_kuds$MaxDistReceivers), week_kuds$KUD50)
+
+cor(week_kuds$KUD95, 1/week_kuds$LengthStd)
+cor(week_kuds$KUD95, 1/week_kuds$BodyMassStd)
+cor(week_kuds$KUD95, 1/week_kuds$Longevity)
+cor(week_kuds$KUD95, 1/week_kuds$Vulnerability)
+cor(week_kuds$KUD95, 1/week_kuds$Troph)
+cor(1/week_kuds$ReceiverDensity, week_kuds$KUD95)
+cor(1/week_kuds$MonitArea_km2, week_kuds$KUD95)
+cor(1/week_kuds$MCP_km2, week_kuds$KUD95)
+cor(1/week_kuds$NReceivers, week_kuds$KUD95)
+cor(1/week_kuds$MaxDistReceivers, week_kuds$KUD95)
+
+cor(week_kuds$KUD50, 1/week_kuds$LengthStd)
+cor(week_kuds$KUD50, 1/week_kuds$BodyMassStd)
+cor(week_kuds$KUD50, 1/week_kuds$Longevity)
+cor(week_kuds$KUD50, 1/week_kuds$Vulnerability)
+cor(week_kuds$KUD50, 1/week_kuds$Troph)
+cor(1/week_kuds$ReceiverDensity, week_kuds$KUD50)
+cor(1/week_kuds$MonitArea_km2, week_kuds$KUD50)
+cor(1/week_kuds$MCP_km2, week_kuds$KUD50)
+cor(1/week_kuds$NReceivers, week_kuds$KUD50)
+cor(1/week_kuds$MaxDistReceivers, week_kuds$KUD50)
+```
+
+Transformations to the independent variables were made to try to meet the assumption of linearity. However, we hadn't any positive results and the data kept violating the assumption.
+
+
+# Modelling KUD95
+
+We tested the full linear model and checked the assumptions.
+```{r}
+#Full model assumption checking
+lmtotal <- lm(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2, data = week_kuds)
+summary(lmtotal)
+
+#Normality assumption
+qqnorm(lmtotal$residuals)
+qqline(lmtotal$residuals, col = 2)
+
+#Homocedascity assumption
+plot(lmtotal$fitted.values, lmtotal$residuals)
+abline(h=0, col="red")
+```
+
+As expected, the linear model do not fit well to our data, since the assumptions are not met. 
+
+
+We tried to fit different types of models. We modeled the response against each predictor variable separately. We then compare the AIC of each model to see which one fitted better.
+
+```{r}
+#Modeling (each variable separately)
+
+#Length Standardised
+lm_length <- lm(KUD95 ~ LengthStd, data=week_kuds)
+glm_length <- glm(KUD95 ~ LengthStd, data=week_kuds, family=Gamma(link="log"))
+gam_length <- gam(KUD95 ~ LengthStd, data=week_kuds, family=Gamma(link="log"))
+glmmF_length <- glmmTMB(KUD95 ~ LengthStd + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_length <- glmmTMB(KUD95 ~ LengthStd + (1|Transmitter), data=week_kuds, family=Gamma(link="log")) #control = glmerControl(optimizer = "bobyqa")
+glmmS_length <- glmmTMB(KUD95 ~ LengthStd + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_length <- gamm(KUD95 ~ s(LengthStd), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_length <- gamm4(KUD95 ~ s(LengthStd), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_length <- gamm(KUD95 ~ s(LengthStd), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_length <- gamm4(KUD95 ~ s(LengthStd), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_length <- gamm(KUD95 ~ s(LengthStd), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_length <- gamm4(KUD95 ~ s(LengthStd), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+
+AIC(lm_length, glm_length, gam_length, glmmF_length, glmmT_length, glmmS_length)
+summary(gammF_length$lme)
+summary(gammT_length$lme)
+summary(gammS_length$lme)
+
+
+#BodyMass Standardised
+lm_bodymass <- lm(KUD95 ~ BodyMassStd, data=week_kuds)
+glm_bodymass <- glm(KUD95 ~ BodyMassStd, data=week_kuds, family=Gamma(link="log"))
+gam_bodymass <- gam(KUD95 ~ BodyMassStd, data=week_kuds, family=Gamma(link="log"))
+glmmF_bodymass <- glmmTMB(KUD95 ~ BodyMassStd + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_bodymass <- glmmTMB(KUD95 ~ BodyMassStd + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_bodymass <- glmmTMB(KUD95 ~ BodyMassStd + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_bodymass <- gamm(KUD95 ~ s(BodyMassStd), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_bodymass <- gamm4(KUD95 ~ s(BodyMassStd), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_bodymass <- gamm(KUD95 ~ s(BodyMassStd), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_bodymass <- gamm4(KUD95 ~ s(BodyMassStd), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_bodymass <- gamm(KUD95 ~ s(BodyMassStd), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_bodymass <- gamm4(KUD95 ~ s(BodyMassStd), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+
+AIC(lm_bodymass, glm_bodymass, gam_bodymass, glmmF_bodymass, glmmT_bodymass, glmmS_bodymass)
+summary(gammF_bodymass$lme)
+summary(gammT_bodymass$lme)
+summary(gammS_bodymass$lme)
+
+
+#Longevity
+lm_longevity <- lm(KUD95 ~ Longevity, data=week_kuds)
+glm_longevity <- glm(KUD95 ~ Longevity, data=week_kuds, family=Gamma(link="log"))
+gam_longevity <- gam(KUD95 ~ Longevity, data=week_kuds, family=Gamma(link="log"))
+glmmF_longevity <- glmmTMB(KUD95 ~ Longevity + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_longevity <- glmmTMB(KUD95 ~ Longevity + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_longevity <- glmmTMB(KUD95 ~ Longevity + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_longevity <- gamm(KUD95 ~ s(Longevity), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_longevity <- gamm4(KUD95 ~ s(Longevity), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_longevity <- gamm(KUD95 ~ s(Longevity), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_longevity <- gamm4(KUD95 ~ s(Longevity), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_longevity <- gamm(KUD95 ~ s(Longevity), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_longevity <- gamm4(KUD95 ~ s(Longevity), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_longevity, glm_longevity, gam_longevity, glmmF_longevity, glmmT_longevity, glmmS_longevity)
+summary(gammF_longevity$lme)
+summary(gammT_longevity$lme)
+summary(gammS_longevity$lme)
+
+
+#Vulnerability
+lm_vulnerability <- lm(KUD95 ~ Vulnerability, data=week_kuds)
+glm_vulnerability <- glm(KUD95 ~ Vulnerability, data=week_kuds, family=Gamma(link="log"))
+gam_vulnerability <- gam(KUD95 ~ Vulnerability, data=week_kuds, family=Gamma(link="log"))
+glmmF_vulnerability <- glmmTMB(KUD95 ~ Vulnerability + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_vulnerability <- glmmTMB(KUD95 ~ Vulnerability + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_vulnerability <- glmmTMB(KUD95 ~ Vulnerability + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_vulnerability <- gamm(KUD95 ~ s(Vulnerability), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_vulnerability <- gamm4(KUD95 ~ s(Vulnerability), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_vulnerability <- gamm(KUD95 ~ s(Vulnerability), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_vulnerability <- gamm4(KUD95 ~ s(Vulnerability), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_vulnerability <- gamm(KUD95 ~ s(Vulnerability), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_vulnerability <- gamm4(KUD95 ~ s(Vulnerability), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_vulnerability, glm_vulnerability, gam_vulnerability, glmmF_vulnerability, glmmT_vulnerability, glmmS_vulnerability)
+summary(gammF_vulnerability$lme)
+summary(gammT_vulnerability$lme)
+summary(gammS_vulnerability$lme)
+
+
+#Troph
+lm_troph <- lm(KUD95 ~ Troph, data=week_kuds)
+glm_troph <- glm(KUD95 ~ Troph, data=week_kuds, family=Gamma(link="log"))
+gam_troph <- gam(KUD95 ~ Troph, data=week_kuds, family=Gamma(link="log"))
+glmmF_troph <- glmmTMB(KUD95 ~ Troph + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_troph <- glmmTMB(KUD95 ~ Troph + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_troph <- glmmTMB(KUD95 ~ Troph + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_troph <- gamm(KUD95 ~ s(Troph), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   ##Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_troph <- gamm4(KUD95 ~ s(Troph), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_troph <- gamm(KUD95 ~ s(Troph), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_troph <- gamm4(KUD95 ~ s(Troph), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_troph <- gamm(KUD95 ~ s(Troph), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_troph <- gamm4(KUD95 ~ s(Troph), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_troph, glm_troph, gam_troph, glmmF_troph, glmmT_troph, glmmS_troph)
+summary(gammF_troph$lme)
+summary(gammT_troph$lme)
+summary(gammS_troph$lme)
+
+
+#Habitat
+lm_habitat <- lm(KUD95 ~ Habitat, data=week_kuds)
+glm_habitat <- glm(KUD95 ~ Habitat, data=week_kuds, family=Gamma(link="log"))
+gam_habitat <- gam(KUD95 ~ Habitat, data=week_kuds, family=Gamma(link="log"))
+glmmF_habitat <- glmmTMB(KUD95 ~ Habitat + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_habitat <- glmmTMB(KUD95 ~ Habitat + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_habitat <- glmmTMB(KUD95 ~ Habitat + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_habitat <- gamm(KUD95 ~ Habitat, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_habitat <- gamm4(KUD95 ~ Habitat, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_habitat <- gamm(KUD95 ~ Habitat, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_habitat <- gamm4(KUD95 ~ Habitat, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_habitat <- gamm(KUD95 ~ Habitat, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_habitat <- gamm4(KUD95 ~ Habitat, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_habitat, glm_habitat, gam_habitat, glmmF_habitat, glmmT_habitat, glmmS_habitat)
+summary(gammF_habitat$lme)
+summary(gammT_habitat$lme)
+summary(gammS_habitat$lme)
+
+
+#Migration
+lm_migration <- lm(KUD95 ~ Migration, data=week_kuds)
+glm_migration <- glm(KUD95 ~ Migration, data=week_kuds, family=Gamma(link="log"))
+gam_migration <- gam(KUD95 ~ Migration, data=week_kuds, family=Gamma(link="log"))
+glmmF_migration <- glmmTMB(KUD95 ~ Migration + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_migration <- glmmTMB(KUD95 ~ Migration + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_migration <- glmmTMB(KUD95 ~ Migration + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_migration <- gamm(KUD95 ~ Migration, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_migration <- gamm4(KUD95 ~ Migration, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_migration <- gamm(KUD95 ~ Migration, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_migration <- gamm4(KUD95 ~ Migration, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_migration <- gamm(KUD95 ~ Migration, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_migration <- gamm4(KUD95 ~ Migration, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_migration, glm_migration, gam_migration, glmmF_migration, glmmT_migration, glmmS_migration)
+summary(gammF_migration$lme)
+summary(gammT_migration$lme)
+summary(gammS_migration$lme)
+
+
+#ComImport
+lm_comimport <- lm(KUD95 ~ ComImport, data=week_kuds)
+glm_comimport <- glm(KUD95 ~ ComImport, data=week_kuds, family=Gamma(link="log"))
+gam_comimport <- gam(KUD95 ~ ComImport, data=week_kuds, family=Gamma(link="log"))
+glmmF_comimport <- glmmTMB(KUD95 ~ ComImport + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_comimport <- glmmTMB(KUD95 ~ ComImport + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_comimport <- glmmTMB(KUD95 ~ ComImport + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_comimport <- gamm(KUD95 ~ ComImport, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_comimport <- gamm4(KUD95 ~ ComImport, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_comimport <- gamm(KUD95 ~ ComImport, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_comimport <- gamm4(KUD95 ~ ComImport, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_comimport <- gamm(KUD95 ~ ComImport, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_comimport <- gamm4(KUD95 ~ ComImport, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_comimport, glm_comimport, gam_comimport, glmmF_comimport, glmmT_comimport, glmmS_comimport)
+summary(gammF_comimport$lme)
+summary(gammT_comimport$lme)
+summary(gammS_comimport$lme)
+```
+
+Observing the AIC values of all models adjusted, we can see that the one that better fits the data is the GLMM, with the Transmitter as random effect. Looking for all the GLMM adjusted, with higher attention to the variables used as random effects, we see that the models adjusted with Transmitter are better than the ones adjusted with File, and lastly Species.
+
+To analyse and support the importance of each variable assigned to the random effect, we also perform a random forest model, including all three variables: Transmitter, File and Species.
+
+```{r}
+random_three <- rpart(KUD95 ~ Species + Transmitter + File, data = week_kuds)
+
+summary(random_three)
+```
+
+As suspected by the AIC of the previous models, the Transmitter has higher importance, followed by the File and then the Species.
+
+To choose which one of these variables include in the model, we tested all possible combinations.
+
+```{r}
+glmmT_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+
+glmmF_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|File), data=week_kuds, family=Gamma(link="log"))
+
+glmmS_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmTF_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log"))
+
+glmmTS_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmFS_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|File) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmTFS_total <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+
+AIC(glmmT_total, glmmF_total, glmmS_total, glmmTF_total, glmmTS_total, glmmFS_total, glmmTFS_total)
+
+#Now we need to compare if the models are statistically different or not
+anova(glmmT_total, glmmTF_total) #significant differences, this two models differ statistically
+anova(glmmT_total, glmmTFS_total) #significant differences, this two models differ statistically
+anova(glmmTF_total, glmmTFS_total) #non significant differences, this two models do not differ statistically
+anova(glmmTF_total, glmmTS_total) #non significant differences, this two models do not differ statistically
+anova(glmmTS_total, glmmTFS_total) #significant differences, this two models differ statistically
+
+#choose the simplest model with the lower AIC, that is statistically different from the others, which means the model with Transmitter and File as random effect (glmmTF_total)
+```
+
+
+Having chosen the best variable to include in the model as random effect, we now must do a backward stepwise selection, to investigate which are the best predictor variables to explain the response behaviour.
+
+First we evaluated the significance of each biological trait in explaining the KUDs alone.
+```{r}
+#testing all variables separately using GLMM and File and Transmitter as random effects
+
+summary(glmmTMB(KUD95 ~ LengthStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ LengthStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ BodyMassStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ BodyMassStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ Longevity + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ Longevity + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ Vulnerability + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ Vulnerability + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ Troph + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ Troph + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ Habitat + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ Habitat + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ Migration + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ Migration + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+
+summary(glmmTMB(KUD95 ~ ComImport + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+summary(glmmTMB(KUD50 ~ ComImport + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+```
+
+We found that length, body mass, habitat and migration could alone explain the variability of KUDs.
+However, we investigated if the models could reach a better fit by including more variables. We did that be performing Backward Elimination.
+
+```{r}
+Final1 <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final1)
+
+Final2 <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final2)
+
+Final3 <- glmmTMB(KUD95 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Habitat + Migration + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final3)
+
+Final4 <- glmmTMB(KUD95 ~ LengthStd + Longevity + Vulnerability + Habitat + Migration + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final4)
+
+Final5 <- glmmTMB(KUD95 ~ LengthStd + Longevity + Habitat + Migration + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final5)
+
+Final6 <- glmmTMB(KUD95 ~ LengthStd + Longevity + Habitat + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final6)
+
+Final7 <- glmmTMB(KUD95 ~ LengthStd + Habitat + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final7)
+
+anova(Final1, Final7) #as there is no evidence that this two models are statistically different from each other, we must choose the simplest one, the one with less variables (Final7)
+
+ranef(Final7) #deviation from intercept for each Transmitter and File group
+
+confint(Final7)
+
+
+#evaluate if the final model is better than the ones including only one biological trait
+anova(Final7, glmmTMB(KUD95 ~ LengthStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7, glmmTMB(KUD95 ~ BodyMassStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7, glmmTMB(KUD95 ~ Habitat + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7, glmmTMB(KUD95 ~ Migration + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+```
+
+We reached the best fitted model (Final7). Now we must analyse the residuals to see how they behave.
+
+
+```{r}
+#Test residuals for the best model (goodness of fit)
+testDispersion(Final7)  #plot with normality, dispersion and outliers
+
+simulationOutput <- simulateResiduals(fittedModel = Final7, plot = F) #dispersion test
+testDispersion(simulationOutput) #dispersion test
+
+plot(simulationOutput) #residual analysis
+plotQQunif(simulationOutput) #Q-Q plot (normality checking)
+plotResiduals(simulationOutput) #residual vs. predicted (homoscedasticity checking)
+testOutliers(simulationOutput) #outliers checking
+
+#Simulations from the model
+getObservedResponse(Final7)  #response used to fit the model
+getFitted(Final7)  #predictions of the model for all points
+x = getSimulations(Final7, nsim = 5, type = "refit")  #extract simulations from the model
+getRefit(Final7, x[[1]])  #model with simulated data
+getRefit(Final7, getObservedResponse(Final7))  #model with real data
+
+#create a dataframe with the simulated data and the true data
+df <- data.frame(x$sim_1, x$sim_2, x$sim_3, week_kuds$KUD95, week_kuds$LengthStd, week_kuds$Habitat, week_kuds$ComImport)
+
+#plot KUD95 (real and simulated) against Length Std
+grid.arrange(ggplot(data= df, aes(x = week_kuds.LengthStd, y=week_kuds.KUD95)) + geom_point(col="black") +  scale_y_continuous(limits = c(0, 15)) + xlab("Length Std") + ylab("real KUD95"), ggplot(data= df, aes(x = week_kuds.LengthStd, y=x.sim_1)) + geom_point(col="lightblue4") +  scale_y_continuous(limits = c(0, 15)) + xlab("Length Std") + ylab("KUD95 simulation 1"), ggplot(data= df, aes(x = week_kuds.LengthStd, y=x.sim_2)) + geom_point(col="deepskyblue3") +  scale_y_continuous(limits = c(0, 15)) + xlab("Length Std") + ylab("KUD95 simulation 2"), ggplot(data= df, aes(x = week_kuds.LengthStd, y=x.sim_3)) + geom_point(col="deepskyblue4") +  scale_y_continuous(limits = c(0, 15)) + xlab("Length Std") + ylab("KUD95 simulation 3"))
+
+#plot KUD95 (real and simulated) against Commercial Importance
+grid.arrange(ggplot(data = df, aes(x = week_kuds.ComImport, y=week_kuds.KUD95)) +
+  geom_boxplot(fill = "black") + scale_y_continuous(limits = c(0, 15)) + xlab("Commercial Importance") + ylab("real KUD95"), ggplot(data = df, aes(x = week_kuds.ComImport, y=x.sim_1)) +
+  geom_boxplot(fill = "lightblue4") + scale_y_continuous(limits = c(0, 15)) + xlab("Commercial Importance") + ylab("KUD95 simulation 1"), ggplot(data = df, aes(x = week_kuds.ComImport, y=x.sim_2)) +
+  geom_boxplot(fill = "deepskyblue3") + scale_y_continuous(limits = c(0, 15)) + xlab("Commercial Importance") + ylab("KUD95 simulation 2"), ggplot(data = df, aes(x = week_kuds.ComImport, y=x.sim_3)) + geom_boxplot(fill = "deepskyblue4") + scale_y_continuous(limits = c(0, 15)) + xlab("Commercial Importance") + ylab("KUD95 simulation 3"), ncol = 4)
+
+#plot KUD95 (real and simulated) against Habitat
+grid.arrange(ggplot(data = df, aes(x = week_kuds.Habitat, y=week_kuds.KUD95)) +
+  geom_boxplot(fill = "black") + scale_y_continuous(limits = c(0, 15)) + xlab("Habitat") + ylab("real KUD95"), ggplot(data = df, aes(x = week_kuds.Habitat, y=x.sim_1)) +
+  geom_boxplot(fill = "lightblue4") + scale_y_continuous(limits = c(0, 15)) + xlab("Habitat") + ylab("KUD95 simulation 1"), ggplot(data = df, aes(x = week_kuds.Habitat, y=x.sim_2)) +
+  geom_boxplot(fill = "deepskyblue3") + scale_y_continuous(limits = c(0, 15)) + xlab("Habitat") + ylab("KUD95 simulation 2"), ggplot(data = df, aes(x = week_kuds.Habitat, y=x.sim_3)) + geom_boxplot(fill = "deepskyblue4") + scale_y_continuous(limits = c(0, 15)) + xlab("Habitat") + ylab("KUD95 simulation 3"), ncol = 4)
+```
+
+The normality and homoscedasticity assumptions aren't met. However, given the large dataset, this violation may not be a big problem. To investigate this, we simulated the response values and compared with the real ones. After observing the results, we concluded that the patterns were similar and the model can be said to be well adjusted.
+
+# Modelling KUD50
+
+We tested the full linear model and checked the assumptions.
+```{r}
+#Full model assumption checking
+lmtotal1 <- lm(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2, data = week_kuds)
+summary(lmtotal1)
+
+#Normality assumption
+qqnorm(lmtotal1$residuals)
+qqline(lmtotal1$residuals, col = 2)
+
+#Homocedascity assumption
+plot(lmtotal1$fitted.values, lmtotal1$residuals)
+abline(h=0, col="red")
+```
+
+As expected, the linear model do not fit well to our data, since the assumptions are not met. 
+
+
+We tried to fit different types of models. We modeled the response against each predictor variable separately. We then compare the AIC of each model to see which one fitted better.
+
+```{r}
+#Modeling (each variable separately)
+
+#Length Standardised
+lm_length1 <- lm(KUD50 ~ LengthStd, data=week_kuds)
+glm_length1 <- glm(KUD50 ~ LengthStd, data=week_kuds, family=Gamma(link="log"))
+gam_length1 <- gam(KUD50 ~ LengthStd, data=week_kuds, family=Gamma(link="log"))
+glmmF_length1 <- glmmTMB(KUD50 ~ LengthStd + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_length1 <- glmmTMB(KUD50 ~ LengthStd + (1|Transmitter), data=week_kuds, family=Gamma(link="log")) #control = glmerControl(optimizer = "bobyqa")
+glmmS_length1 <- glmmTMB(KUD50 ~ LengthStd + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_length1 <- gamm(KUD50 ~ s(LengthStd), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_length1 <- gamm4(KUD50 ~ s(LengthStd), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_length1 <- gamm(KUD50 ~ s(LengthStd), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_length1 <- gamm4(KUD50 ~ s(LengthStd), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_length1 <- gamm(KUD50 ~ s(LengthStd), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_length1 <- gamm4(KUD50 ~ s(LengthStd), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_length1, glm_length1, gam_length1, glmmF_length1, glmmT_length1, glmmS_length1)
+summary(gammF_length1$lme)
+summary(gammT_length1$lme)
+summary(gammS_length1$lme)
+
+
+#BodyMass Standardised
+lm_bodymass1 <- lm(KUD50 ~ BodyMassStd, data=week_kuds)
+glm_bodymass1 <- glm(KUD50 ~ BodyMassStd, data=week_kuds, family=Gamma(link="log"))
+gam_bodymass1 <- gam(KUD50 ~ BodyMassStd, data=week_kuds, family=Gamma(link="log"))
+glmmF_bodymass1 <- glmmTMB(KUD50 ~ BodyMassStd + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_bodymass1 <- glmmTMB(KUD50 ~ BodyMassStd + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_bodymass1 <- glmmTMB(KUD50 ~ BodyMassStd + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_bodymass1 <- gamm(KUD50 ~ s(BodyMassStd), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_bodymass1 <- gamm4(KUD50 ~ s(BodyMassStd), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_bodymass1 <- gamm(KUD50 ~ s(BodyMassStd), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_bodymass1 <- gamm4(KUD50 ~ s(BodyMassStd), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_bodymass1 <- gamm(KUD50 ~ s(BodyMassStd), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_bodymass1 <- gamm4(KUD50 ~ s(BodyMassStd), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_bodymass1, glm_bodymass1, gam_bodymass1, glmmF_bodymass1, glmmT_bodymass1, glmmS_bodymass1)
+summary(gammF_bodymass1$lme)
+summary(gammT_bodymass1$lme)
+summary(gammS_bodymass1$lme)
+
+
+#Longevity
+lm_longevity1 <- lm(KUD50 ~ Longevity, data=week_kuds)
+glm_longevity1 <- glm(KUD50 ~ Longevity, data=week_kuds, family=Gamma(link="log"))
+gam_longevity1 <- gam(KUD50 ~ Longevity, data=week_kuds, family=Gamma(link="log"))
+glmmF_longevity1 <- glmmTMB(KUD50 ~ Longevity + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_longevity1 <- glmmTMB(KUD50 ~ Longevity + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_longevity1 <- glmmTMB(KUD50 ~ Longevity + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_longevity1 <- gamm(KUD50 ~ s(Longevity), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_longevity1 <- gamm4(KUD50 ~ s(Longevity), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_longevity1 <- gamm(KUD50 ~ s(Longevity), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_longevity1 <- gamm4(KUD50 ~ s(Longevity), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_longevity1 <- gamm(KUD50 ~ s(Longevity), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_longevity1 <- gamm4(KUD50 ~ s(Longevity), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_longevity1, glm_longevity1, gam_longevity1, glmmF_longevity1, glmmT_longevity1, glmmS_longevity1)
+summary(gammF_longevity1$lme)
+summary(gammT_longevity1$lme)
+summary(gammS_longevity1$lme)
+
+
+#Vulnerability
+lm_vulnerability1 <- lm(KUD50 ~ Vulnerability, data=week_kuds)
+glm_vulnerability1 <- glm(KUD50 ~ Vulnerability, data=week_kuds, family=Gamma(link="log"))
+gam_vulnerability1 <- gam(KUD50 ~ Vulnerability, data=week_kuds, family=Gamma(link="log"))
+glmmF_vulnerability1 <- glmmTMB(KUD50 ~ Vulnerability + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_vulnerability1 <- glmmTMB(KUD50 ~ Vulnerability + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_vulnerability1 <- glmmTMB(KUD50 ~ Vulnerability + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_vulnerability1 <- gamm(KUD50 ~ s(Vulnerability), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_vulnerability1 <- gamm4(KUD50 ~ s(Vulnerability), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_vulnerability1 <- gamm(KUD50 ~ s(Vulnerability), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_vulnerability1 <- gamm4(KUD50 ~ s(Vulnerability), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_vulnerability1 <- gamm(KUD50 ~ s(Vulnerability), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_vulnerability1 <- gamm4(KUD50 ~ s(Vulnerability), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_vulnerability1, glm_vulnerability1, gam_vulnerability1, glmmF_vulnerability1, glmmT_vulnerability1, glmmS_vulnerability1)
+summary(gammF_vulnerability1$lme)
+summary(gammT_vulnerability1$lme)
+summary(gammS_vulnerability1$lme)
+
+
+#Troph
+lm_troph1 <- lm(KUD50 ~ Troph, data=week_kuds)
+glm_troph1 <- glm(KUD50 ~ Troph, data=week_kuds, family=Gamma(link="log"))
+gam_troph1 <- gam(KUD50 ~ Troph, data=week_kuds, family=Gamma(link="log"))
+glmmF_troph1 <- glmmTMB(KUD50 ~ Troph + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_troph1 <- glmmTMB(KUD50 ~ Troph + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_troph1 <- glmmTMB(KUD50 ~ Troph + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_troph1 <- gamm(KUD50 ~ s(Troph), random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   ##Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_troph1 <- gamm4(KUD50 ~ s(Troph), random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_troph1 <- gamm(KUD50 ~ s(Troph), random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_troph1 <- gamm4(KUD50 ~ s(Troph), random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_troph1 <- gamm(KUD50 ~ s(Troph), random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_troph1 <- gamm4(KUD50 ~ s(Troph), random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_troph1, glm_troph1, gam_troph1, glmmF_troph1, glmmT_troph1, glmmS_troph1)
+summary(gammF_troph1$lme)
+summary(gammT_troph1$lme)
+summary(gammS_troph1$lme)
+
+
+#Habitat
+lm_habitat1 <- lm(KUD50 ~ Habitat, data=week_kuds)
+glm_habitat1 <- glm(KUD50 ~ Habitat, data=week_kuds, family=Gamma(link="log"))
+gam_habitat1 <- gam(KUD50 ~ Habitat, data=week_kuds, family=Gamma(link="log"))
+glmmF_habitat1 <- glmmTMB(KUD50 ~ Habitat + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_habitat1 <- glmmTMB(KUD50 ~ Habitat + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_habitat1 <- glmmTMB(KUD50 ~ Habitat + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_habitat1 <- gamm(KUD50 ~ Habitat, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_habitat1 <- gamm4(KUD50 ~ Habitat, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_habitat1 <- gamm(KUD50 ~ Habitat, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_habitat1 <- gamm4(KUD50 ~ Habitat, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_habitat1 <- gamm(KUD50 ~ Habitat, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_habitat1 <- gamm4(KUD50 ~ Habitat, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_habitat1, glm_habitat1, gam_habitat1, glmmF_habitat1, glmmT_habitat1, glmmS_habitat1)
+summary(gammF_habitat1$lme)
+summary(gammT_habitat1$lme)
+summary(gammS_habitat1$lme)
+
+
+#Migration
+lm_migration1 <- lm(KUD50 ~ Migration, data=week_kuds)
+glm_migration1 <- glm(KUD50 ~ Migration, data=week_kuds, family=Gamma(link="log"))
+gam_migration1 <- gam(KUD50 ~ Migration, data=week_kuds, family=Gamma(link="log"))
+glmmF_migration1 <- glmmTMB(KUD50 ~ Migration + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_migration1 <- glmmTMB(KUD50 ~ Migration + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_migration1 <- glmmTMB(KUD50 ~ Migration + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_migration1 <- gamm(KUD50 ~ Migration, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_migration1 <- gamm4(KUD50 ~ Migration, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_migration1 <- gamm(KUD50 ~ Migration, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_migration1 <- gamm4(KUD50 ~ Migration, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_migration1 <- gamm(KUD50 ~ Migration, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_migration1 <- gamm4(KUD50 ~ Migration, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_migration1, glm_migration1, gam_migration1, glmmF_migration1, glmmT_migration1, glmmS_migration1)
+summary(gammF_migration1$lme)
+summary(gammT_migration1$lme)
+summary(gammS_migration1$lme)
+
+
+#ComImport
+lm_comimport1 <- lm(KUD50 ~ ComImport, data=week_kuds)
+glm_comimport1 <- glm(KUD50 ~ ComImport, data=week_kuds, family=Gamma(link="log"))
+gam_comimport1 <- gam(KUD50 ~ ComImport, data=week_kuds, family=Gamma(link="log"))
+glmmF_comimport1 <- glmmTMB(KUD50 ~ ComImport + (1|File), data=week_kuds, family=Gamma(link="log"))
+glmmT_comimport1 <- glmmTMB(KUD50 ~ ComImport + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+glmmS_comimport1 <- glmmTMB(KUD50 ~ ComImport + (1|Species), data=week_kuds, family=Gamma(link="log"))
+gammF_comimport1 <- gamm(KUD50 ~ ComImport, random=list(File=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4F_comimport1 <- gamm4(KUD50 ~ ComImport, random = ~(1|File), data = week_kuds, family=Gamma(link="log"))
+gammT_comimport1 <- gamm(KUD50 ~ ComImport, random=list(Transmitter=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4T_comimport1 <- gamm4(KUD50 ~ ComImport, random = ~(1|Transmitter), data = week_kuds, family=Gamma(link="log"))
+gammS_comimport1 <- gamm(KUD50 ~ ComImport, random=list(Species=~1), data= week_kuds, family=Gamma(link="log"))   #Preference for gmcv package since gamm4 uses glm methods
+#gamm4S_comimport1 <- gamm4(KUD50 ~ ComImport, random = ~(1|Species), data = week_kuds, family=Gamma(link="log"))
+
+AIC(lm_comimport1, glm_comimport1, gam_comimport1, glmmF_comimport1, glmmT_comimport1, glmmS_comimport1)
+summary(gammF_comimport1$lme)
+summary(gammT_comimport1$lme)
+summary(gammS_comimport1$lme)
+```
+
+Observing the AIC values of all models adjusted, we can see that the one that better fits the data is the GLMM, with the Transmitter as random effect. Looking for all the GLMM adjusted, with higher attention to the variables used as random effects, we see that the models adjusted with Transmitter are better than the ones adjusted with File, and lastly Species.
+
+To analyse and support the importance of each variable assigned to the random effect, we also perform a random forest model, including all three variables: Transmitter, File and Species.
+
+```{r}
+random_three <- rpart(KUD50 ~ Species + Transmitter + File, data = week_kuds)
+
+summary(random_three)
+```
+
+To choose which one of these variables include in the model, we tested all possible combinations.
+
+```{r}
+glmmT_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter), data=week_kuds, family=Gamma(link="log"))
+
+glmmF_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|File), data=week_kuds, family=Gamma(link="log"))
+
+glmmS_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmTF_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log"))
+
+glmmTS_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmFS_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|File) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+glmmTFS_total1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File) + (1|Species), data=week_kuds, family=Gamma(link="log"))
+
+
+AIC(glmmT_total1, glmmF_total1, glmmS_total1, glmmTF_total1, glmmTS_total1, glmmFS_total1, glmmTFS_total1)
+
+#Now we need to compare if the models are statistically different or not
+anova(glmmT_total1, glmmTF_total1) #significant differences, this two models differ statistically
+anova(glmmT_total1, glmmTFS_total1) #significant differences, this two models differ statistically
+anova(glmmTF_total1, glmmTFS_total1) #non significant differences, this two models do not differ statistically
+anova(glmmTF_total1, glmmTS_total1) #non significant differences, this two models do not differ statistically
+anova(glmmTS_total1, glmmTFS_total1) #significant differences, this two models differ statistically
+
+#choose the simplest model with the lower AIC, that is statistically different from the others, which means the model with Transmitter and File as random effect (glmmTF_total1)
+```
+
+
+Having chosen the best variable to include in the model as random effect, we now must do a backward stepwise selection, to investigate which are the best predictor variables to explain the response behaviour.
+
+```{r}
+Final1.1 <- glmmTMB(KUD50 ~ LengthStd + BodyMassStd + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final1.1)
+
+Final2.1 <- glmmTMB(KUD50 ~ LengthStd  + Longevity + Vulnerability + Troph + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final2.1)
+
+Final3.1 <- glmmTMB(KUD50 ~ LengthStd  + Longevity + Vulnerability + Habitat + Migration + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final3.1)
+
+Final4.1 <- glmmTMB(KUD50 ~ LengthStd  + Longevity + Vulnerability + Habitat + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final4.1)
+
+Final5.1 <- glmmTMB(KUD50 ~ LengthStd  + Longevity  + Habitat + ComImport + ReceiverDensity + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final5.1)
+
+Final6.1 <- glmmTMB(KUD50 ~ LengthStd  + Longevity  + Habitat + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final6.1)
+
+Final7.1 <- glmmTMB(KUD50 ~ LengthStd  + Habitat + ComImport + MonitArea_km2 + (1|Transmitter) + (1|File), data = week_kuds, family = Gamma(link="log"))
+summary(Final7.1)
+
+anova(Final6.1, Final7.1) #as there is no evidence that this two models are statistically different from each other, we must choose the simplest one, the one with less variables (Final7)
+
+ranef(Final7.1) #deviation from intercept for each Transmitter and File group
+
+confint(Final7.1)
+
+#evaluate if the final model is better than the ones including only one biological trait
+anova(Final7.1, glmmTMB(KUD50 ~ LengthStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7.1, glmmTMB(KUD50 ~ BodyMassStd + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7.1, glmmTMB(KUD50 ~ Habitat + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+anova(Final7.1, glmmTMB(KUD50 ~ Migration + (1|Transmitter) + (1|File), data=week_kuds, family=Gamma(link="log")))
+```
+
+We reached the best fitted model. Now we must analyse the residuals to see how they behave.
+
+
+```{r}
+#Test residuals for the best model (goodness of fit)
+testDispersion(Final7.1)  #plot with normality, dispersion and outliers
+
+simulationOutput1 <- simulateResiduals(fittedModel = Final7.1, plot = F) #dispersion test
+testDispersion(simulationOutput1) #dispersion test
+
+plot(simulationOutput1) #residual analysis
+plotQQunif(simulationOutput1) #Q-Q plot (normality checking)
+plotResiduals(simulationOutput1) #residual vs. predicted (homoscedasticity checking)
+testOutliers(simulationOutput1) #outliers checking
+
+#Simulations from the model
+getObservedResponse(Final7.1)  #response used to fit the model
+getFitted(Final7.1)  #predictions of the model for all points
+x1 = getSimulations(Final7.1, nsim = 5, type = "refit")  #extract simulations from the model
+getRefit(Final7.1, x1[[1]])  #model with simulated data
+getRefit(Final7.1, getObservedResponse(Final7.1))  #model with real data
+
+#create a dataframe with the simulated data and the true data
+df1 <- data.frame(x1$sim_1, x1$sim_2, x1$sim_3, week_kuds$KUD50, week_kuds$LengthStd, week_kuds$Habitat, week_kuds$ComImport)
+
+#plot KUD50 (real and simulated) against LengthStd
+grid.arrange(ggplot(data= df1, aes(x = week_kuds.LengthStd, y=week_kuds.KUD50)) + geom_point(col="black") +  scale_y_continuous(limits = c(0, 4)) + xlab("Length Std") + ylab("real KUD50"), ggplot(data= df1, aes(x = week_kuds.LengthStd, y=x1.sim_1)) + geom_point(col="green3") +  scale_y_continuous(limits = c(0, 4)) + xlab("Length Std") + ylab("KUD50 simulation 1"), ggplot(data= df1, aes(x = week_kuds.LengthStd, y=x1.sim_2)) + geom_point(col="green") +  scale_y_continuous(limits = c(0, 4)) + xlab("Length Std") + ylab("KUD50 simulation 2"), ggplot(data= df1, aes(x = week_kuds.LengthStd, y=x1.sim_3)) + geom_point(col="green4") +  scale_y_continuous(limits = c(0, 4)) + xlab("Length Std") + ylab("KUD50 simulation 3"))
+
+#plot KUD50 (real and simulated) against Commercial importance
+grid.arrange(ggplot(data = df1, aes(x = week_kuds.ComImport, y=week_kuds.KUD50)) +
+  geom_boxplot(fill = "black") + scale_y_continuous(limits = c(0, 4)) + xlab("Commercial Importance") + ylab("real KUD50"), ggplot(data = df1, aes(x = week_kuds.ComImport, y=x1.sim_1)) +
+  geom_boxplot(fill = "green3") + scale_y_continuous(limits = c(0, 4)) + xlab("Commercial Importance") + ylab("KUD50 simulation 1"), ggplot(data = df1, aes(x = week_kuds.ComImport, y=x1.sim_2)) +
+  geom_boxplot(fill = "green") + scale_y_continuous(limits = c(0, 4)) + xlab("Commercial Importance") + ylab("KUD50 simulation 2"), ggplot(data = df1, aes(x = week_kuds.ComImport, y=x1.sim_3)) + geom_boxplot(fill = "green4") + scale_y_continuous(limits = c(0, 4)) + xlab("Commercial Importance") + ylab("KUD50 simulation 3"), ncol = 4)
+
+#plot KUD50 (real and simulated) against Habitat
+grid.arrange(ggplot(data = df1, aes(x = week_kuds.Habitat, y=week_kuds.KUD50)) +
+  geom_boxplot(fill = "black") + scale_y_continuous(limits = c(0, 4)) + xlab("Habitat") + ylab("real KUD50"), ggplot(data = df1, aes(x = week_kuds.Habitat, y=x1.sim_1)) +
+  geom_boxplot(fill = "green3") + scale_y_continuous(limits = c(0, 4)) + xlab("Habitat") + ylab("KUD50 simulation 1"), ggplot(data = df1, aes(x = week_kuds.Habitat, y=x1.sim_2)) +
+  geom_boxplot(fill = "green") + scale_y_continuous(limits = c(0, 4)) + xlab("Habitat") + ylab("KUD50 simulation 2"), ggplot(data = df1, aes(x = week_kuds.Habitat, y=x1.sim_3)) + geom_boxplot(fill = "green4") + scale_y_continuous(limits = c(0, 4)) + xlab("Habitat") + ylab("KUD50 simulation 3"), ncol = 4)
+```
+
+The normality and homoscedasticity assumptions aren't met. However, given the large dataset, this violation may not be a big problem. To investigate this, we simulated the response values and compared with the real ones. After observing the results, we concluded that the patterns were similar and the model can be said to be well adjusted.
+
